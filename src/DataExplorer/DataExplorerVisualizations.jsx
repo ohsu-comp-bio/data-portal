@@ -9,7 +9,7 @@ import SummaryChartGroup from '../components/charts/SummaryChartGroup/.';
 import PercentageStackedBarChart from '../components/charts/PercentageStackedBarChart/.';
 import DataSummaryCardGroup from '../components/cards/DataSummaryCardGroup/.';
 import { getCharts } from '../components/charts/helper';
-import { downloadManifest, downloadData, getManifestEntryCount } from './actionHelper';
+import { downloadManifest, downloadData, getManifestEntryCount, exportAllSelectedDataToWorkspace } from './actionHelper';
 import { calculateDropdownButtonConfigs, humanizeNumber } from './utils';
 import { exportAllSelectedDataToCloud } from './custom/bdbag';
 
@@ -53,6 +53,16 @@ class DataExplorerVisualizations extends React.Component {
     );
   }
 
+  onExportToWorkspace = () => {
+    if (this.props.selectedTableRows.length === 0) return;
+    exportAllSelectedDataToWorkspace(
+      this.props.api,
+      this.props.projectId,
+      this.props.selectedTableRows,
+      this.props.arrangerConfig,
+    );
+  }
+
   onSelectedRowsChange = (selectedTableRows) => {
     this.refreshManifestEntryCount(selectedTableRows);
   }
@@ -67,6 +77,9 @@ class DataExplorerVisualizations extends React.Component {
     }
     if (buttonConfig.type === 'export') {
       clickFunc = this.onExportToCloud;
+    }
+    if (buttonConfig.type === 'export-to-workspace') {
+      clickFunc = this.onExportToWorkspace;
     }
     return clickFunc;
   }
@@ -91,7 +104,7 @@ class DataExplorerVisualizations extends React.Component {
   }
 
   isButtonEnabled = (buttonConfig) => {
-    if (buttonConfig.type === 'manifest') {
+    if (buttonConfig.type === 'manifest' || buttonConfig.type === 'export-to-workspace') {
       return this.props.selectedTableRows.length > 0 && this.state.manifestEntryCount > 0;
     }
 
@@ -101,7 +114,7 @@ class DataExplorerVisualizations extends React.Component {
   renderButton = (buttonConfig) => {
     const clickFunc = this.getOnClickFunction(buttonConfig);
     let buttonTitle = buttonConfig.title;
-    if (buttonConfig.type === 'manifest' && this.props.selectedTableRows.length > 0) {
+    if (this.props.selectedTableRows.length > 0 && (buttonConfig.type === 'manifest' || buttonConfig.type === 'export-to-workspace') ) {
       buttonTitle = `${buttonConfig.title} (${humanizeNumber(this.state.manifestEntryCount)})`;
     }
     return (<Button

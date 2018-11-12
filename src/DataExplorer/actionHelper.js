@@ -6,6 +6,8 @@ import {
   queryDataByValues,
 } from './arrangerQueryHelper';
 import { hasKeyChain } from './utils';
+import { userapiPath } from '../localconf';
+import { fetchWithCreds } from '../actions';
 
 const checkArrangerGraphqlField = (arrangerConfig) => {
   const MSG_GQLFIELD_FAIL = 'Couldn\'t find key "graphqlField" in Arranger configuration.';
@@ -148,4 +150,79 @@ export const getManifestEntryCount = async (
     resourceIDList,
   );
   return manifestEntryCount;
+};
+
+
+/**
+ * Export manifest data for selected rows in arranger table to Jupyter lightweight workspace.
+ * @param {function} apiFunc - function created by arranger for fetching data
+ * @param {string} projectId - arranger project ID
+ * @param {string[]} selectedTableRows - list of ids of selected rows
+ * @param {Object} arrangerConfig - arranger configuration object
+ * @param {string} arrangerConfig.graphqlField - the data type name for arranger
+ * @param {string} arrangerConfig.manifestMapping.resourceIndexType - type name of resource index
+ * @param {string} arrangerConfig.manifestMapping.referenceIdFieldInResourceIndex - name of
+ *                                reference field in resource index
+ * @param {string} arrangerConfig.manifestMapping.referenceIdFieldInDataIndex - name of
+ *                                reference field in data index
+ */
+export const exportAllSelectedDataToWorkspace = async (
+  apiFunc,
+  projectId,
+  selectedTableRows,
+  arrangerConfig,
+) => {
+  const MSG_EXPORT_TO_WORKSPACE_FAIL = 'Error exporting data to workspace.';
+  checkArrangerGraphqlField(arrangerConfig);
+  if (!hasKeyChain(arrangerConfig, 'manifestMapping.resourceIndexType')
+    || !hasKeyChain(arrangerConfig, 'manifestMapping.referenceIdFieldInResourceIndex')) {
+    throw MSG_EXPORT_TO_WORKSPACE_FAIL;
+  }
+  
+  const resourceIDList = (await queryDataByIds(
+    apiFunc,
+    projectId,
+    selectedTableRows,
+    arrangerConfig.graphqlField,
+    [arrangerConfig.manifestMapping.referenceIdFieldInDataIndex],
+  )).map((d) => {
+    if (!d[arrangerConfig.manifestMapping.referenceIdFieldInDataIndex]) {
+      throw MSG_EXPORT_TO_WORKSPACE_FAIL;
+    }
+    return d[arrangerConfig.manifestMapping.referenceIdFieldInDataIndex];
+  });
+
+  const manifestJSON = await queryDataByValues(
+    apiFunc,
+    projectId,
+    arrangerConfig.manifestMapping.resourceIndexType,
+    arrangerConfig.manifestMapping.referenceIdFieldInResourceIndex,
+    resourceIDList,
+    [
+      arrangerConfig.manifestMapping.resourceIdField,
+      arrangerConfig.manifestMapping.referenceIdFieldInResourceIndex,
+    ],
+  );
+
+  var promises = manifestJSON.map((value, index, arr) => {
+    const did = value.object_id || value.uuid;
+    const urlPath = `${userapiPath}data/download/${did}`;
+    return fetchWithCreds({ path: urlPath, method: 'GET' }).then(
+      (val) => { 
+        if (val.ok) {
+          return val.data;
+        } 
+        return "No file found for " + did;
+      })
+  });
+
+  Promise.all(promises)
+    .then(presignedUrls => { 
+      console.log("presigned URLs: ", presignedUrls);
+    })
+    .catch(function(err) {
+        // Will catch failure of first failed fetch
+        console.log("Failed:", err);
+        throw MSG_EXPORT_TO_WORKSPACE_FAIL;
+    });
 };
