@@ -14,6 +14,7 @@ function buildConfig(opts) {
     basename: process.env.BASENAME || '/',
     hostname: typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}/` : 'http://localhost/',
     gaDebug: !!(process.env.GA_DEBUG && process.env.GA_DEBUG === 'true'),
+    kibana_wrapper_url: process.env.KIBANA_WRAPPER_URL || undefined,
   };
 
   //
@@ -31,6 +32,7 @@ function buildConfig(opts) {
     basename,
     hostname,
     gaDebug,
+    kibana_wrapper_url,
   } = Object.assign({}, defaults, opts);
 
   const submissionApiPath = `${hostname}api/v0/submission/`;
@@ -103,6 +105,7 @@ function buildConfig(opts) {
     loginPath,
     requiredCerts,
     certs: components.certs,
+    kibana_wrapper_url,
   };
 }
 

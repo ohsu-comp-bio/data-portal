@@ -44,6 +44,8 @@ RUN mkdir -p /data-portal
 # mount directory here
 COPY . /data-portal
 WORKDIR /data-portal
+ARG KIBANA_WRAPPER_URL
+ENV KIBANA_WRAPPER_URL=$KIBANA_WRAPPER_URL
 RUN COMMIT=`git rev-parse HEAD` && echo "export const portalCommit = \"${COMMIT}\";" >src/versions.js \
    && VERSION=`git describe --always --tags` && echo "export const portalVersion =\"${VERSION}\";" >>src/versions.js \
    && /bin/rm -rf node_modules \
